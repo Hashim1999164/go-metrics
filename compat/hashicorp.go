@@ -122,10 +122,20 @@ func NewGlobal(conf *Config, sink MetricSink) (*Metrics, error) {
 	return metrics.NewGlobal(conf, sink)
 }
 
+type SinkLogger = metrics.SinkLogger
+
 func NewStatsdSink(addr string) (*StatsdSink, error) {
 	return metrics.NewStatsdSink(addr)
 }
 
+func NewStatsdSinkWithLogger(addr string, logger SinkLogger) (*StatsdSink, error) {
+	return metrics.NewStatsdSinkWithLogger(addr, logger)
+}
+
 func NewStatsiteSink(addr string) (*StatsiteSink, error) {
 	return metrics.NewStatsiteSink(addr)
+}
+
+func NewStatsiteSinkWithLogger(addr string, logger SinkLogger) (*StatsiteSink, error) {
+	return metrics.NewStatsiteSinkWithLogger(addr, logger)
 }

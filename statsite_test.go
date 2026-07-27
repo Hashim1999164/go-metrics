@@ -214,3 +214,41 @@ func TestNewStatsiteSinkFromURL(t *testing.T) {
 		})
 	}
 }
+
+func TestStatsiteSink_SetLogger_ConnectError(t *testing.T) {
+	logger := &testLogger{}
+
+	s, err := NewStatsiteSinkWithLogger("127.0.0.1:1", logger)
+	if err != nil {
+		t.Fatalf("unexpected err: %s", err)
+	}
+	defer s.Shutdown()
+
+	s.SetGauge([]string{"test", "gauge"}, float32(1))
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		logger.mu.Lock()
+		errCount := len(logger.errors)
+		logger.mu.Unlock()
+		if errCount > 0 {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	logger.mu.Lock()
+	defer logger.mu.Unlock()
+	if len(logger.errors) == 0 {
+		t.Fatal("expected at least one error to be logged via SinkLogger, got none")
+	}
+}
+
+func TestStatsiteSink_SetLogger_NilFallback(t *testing.T) {
+	s := &StatsiteSink{}
+	if s.logger != nil {
+		t.Fatal("expected nil logger by default")
+	}
+	s.logErr("test error", fmt.Errorf("err"))
+	s.logWarn("test warn", fmt.Errorf("warn"))
+}
