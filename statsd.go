@@ -24,8 +24,8 @@ const (
 // any other structured logger that provides Warn and Error methods with
 // key/value pair arguments.
 type SinkLogger interface {
-	Warn(msg string, args ...interface{})
-	Error(msg string, args ...interface{})
+	Warn(msg string, args ...any)
+	Error(msg string, args ...any)
 }
 
 // StatsdSink provides a MetricSink that can be used

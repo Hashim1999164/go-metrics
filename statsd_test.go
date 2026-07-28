@@ -21,13 +21,13 @@ type testLogger struct {
 	errors  []string
 }
 
-func (l *testLogger) Warn(msg string, args ...interface{}) {
+func (l *testLogger) Warn(msg string, args ...any) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.warns = append(l.warns, msg)
 }
 
-func (l *testLogger) Error(msg string, args ...interface{}) {
+func (l *testLogger) Error(msg string, args ...any) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.errors = append(l.errors, msg)
