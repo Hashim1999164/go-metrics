@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2013, 2025
+// Copyright IBM Corp. 2013, 2026
 // SPDX-License-Identifier: MIT
 
 package metrics
@@ -10,9 +10,28 @@ import (
 	"net"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
+
+type testLogger struct {
+	mu      sync.Mutex
+	warns   []string
+	errors  []string
+}
+
+func (l *testLogger) Warn(msg string, args ...any) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.warns = append(l.warns, msg)
+}
+
+func (l *testLogger) Error(msg string, args ...any) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.errors = append(l.errors, msg)
+}
 
 func TestStatsd_Flatten(t *testing.T) {
 	s := &StatsdSink{}
@@ -214,4 +233,42 @@ func TestNewStatsdSinkFromURL(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestStatsdSink_SetLogger_ConnectError(t *testing.T) {
+	logger := &testLogger{}
+
+	s := &StatsdSink{
+		addr:        "127.0.0.1:1",
+		metricQueue: make(chan string, 4096),
+		logger:      logger,
+	}
+
+	s.logErr("Error connecting to statsd!", fmt.Errorf("connection refused"))
+	s.logErr("Error writing to statsd!", fmt.Errorf("write error"))
+	s.logErr("Error flushing to statsd!", fmt.Errorf("flush error"))
+
+	logger.mu.Lock()
+	defer logger.mu.Unlock()
+	if len(logger.errors) != 3 {
+		t.Fatalf("expected 3 errors logged via SinkLogger, got %d", len(logger.errors))
+	}
+	for i, want := range []string{
+		"Error connecting to statsd!",
+		"Error writing to statsd!",
+		"Error flushing to statsd!",
+	} {
+		if logger.errors[i] != want {
+			t.Errorf("error[%d]: got %q, want %q", i, logger.errors[i], want)
+		}
+	}
+}
+
+func TestStatsdSink_SetLogger_NilFallback(t *testing.T) {
+	s := &StatsdSink{}
+	if s.logger != nil {
+		t.Fatal("expected nil logger by default")
+	}
+	s.logErr("test error", fmt.Errorf("err"))
+	s.logWarn("test warn", fmt.Errorf("warn"))
 }
