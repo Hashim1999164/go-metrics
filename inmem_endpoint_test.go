@@ -15,8 +15,11 @@ import (
 )
 
 func TestDisplayMetrics(t *testing.T) {
-	interval := 10 * time.Millisecond
+	interval := 20 * time.Millisecond
 	inm := NewInmemSink(interval, 50*time.Millisecond)
+
+	// Wait for the next interval boundary so all samples land in one interval.
+	time.Sleep(time.Until(time.Now().Truncate(interval).Add(interval)))
 
 	// Add data points
 	inm.SetGauge([]string{"foo", "bar"}, 42)
@@ -69,7 +72,7 @@ func TestDisplayMetrics(t *testing.T) {
 					Max:   22,
 					Sum:   42,
 					SumSq: 884,
-					Rate:  4200,
+					Rate:  2100,
 				},
 				Mean:          21,
 				Stddev:        1.4142135623730951,
@@ -84,7 +87,7 @@ func TestDisplayMetrics(t *testing.T) {
 					Max:   40,
 					Sum:   60,
 					SumSq: 2000,
-					Rate:  6000,
+					Rate:  3000,
 				},
 				Mean:          30,
 				Stddev:        14.142135623730951,
@@ -101,7 +104,7 @@ func TestDisplayMetrics(t *testing.T) {
 					Max:   24,
 					Sum:   44,
 					SumSq: 976,
-					Rate:  4400,
+					Rate:  2200,
 				},
 				Mean:          22,
 				Stddev:        2.8284271247461903,
@@ -116,7 +119,7 @@ func TestDisplayMetrics(t *testing.T) {
 					Max:   33,
 					Sum:   56,
 					SumSq: 1618,
-					Rate:  5600,
+					Rate:  2800,
 				},
 				Mean:          28,
 				Stddev:        7.0710678118654755,
