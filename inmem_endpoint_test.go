@@ -11,140 +11,140 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"testing"
+	"testing/synctest"
 	"time"
 )
 
 func TestDisplayMetrics(t *testing.T) {
-	interval := 20 * time.Millisecond
-	inm := NewInmemSink(interval, 50*time.Millisecond)
+	synctest.Test(t, func(t *testing.T) {
+		interval := 20 * time.Millisecond
+		inm := NewInmemSink(interval, 50*time.Millisecond)
 
-	// Wait for the next interval boundary so all samples land in one interval.
-	time.Sleep(time.Until(time.Now().Truncate(interval).Add(interval)))
+		// Add data points
+		inm.SetGauge([]string{"foo", "bar"}, 42)
+		inm.SetGaugeWithLabels([]string{"foo", "bar"}, 23, []Label{{"a", "b"}})
+		inm.EmitKey([]string{"foo", "bar"}, 42)
+		inm.IncrCounter([]string{"foo", "bar"}, 20)
+		inm.IncrCounter([]string{"foo", "bar"}, 22)
+		inm.IncrCounterWithLabels([]string{"foo", "bar"}, 20, []Label{{"a", "b"}})
+		inm.IncrCounterWithLabels([]string{"foo", "bar"}, 40, []Label{{"a", "b"}})
+		inm.AddSample([]string{"foo", "bar"}, 20)
+		inm.AddSample([]string{"foo", "bar"}, 24)
+		inm.AddSampleWithLabels([]string{"foo", "bar"}, 23, []Label{{"a", "b"}})
+		inm.AddSampleWithLabels([]string{"foo", "bar"}, 33, []Label{{"a", "b"}})
 
-	// Add data points
-	inm.SetGauge([]string{"foo", "bar"}, 42)
-	inm.SetGaugeWithLabels([]string{"foo", "bar"}, 23, []Label{{"a", "b"}})
-	inm.EmitKey([]string{"foo", "bar"}, 42)
-	inm.IncrCounter([]string{"foo", "bar"}, 20)
-	inm.IncrCounter([]string{"foo", "bar"}, 22)
-	inm.IncrCounterWithLabels([]string{"foo", "bar"}, 20, []Label{{"a", "b"}})
-	inm.IncrCounterWithLabels([]string{"foo", "bar"}, 40, []Label{{"a", "b"}})
-	inm.AddSample([]string{"foo", "bar"}, 20)
-	inm.AddSample([]string{"foo", "bar"}, 24)
-	inm.AddSampleWithLabels([]string{"foo", "bar"}, 23, []Label{{"a", "b"}})
-	inm.AddSampleWithLabels([]string{"foo", "bar"}, 33, []Label{{"a", "b"}})
+		data := inm.Data()
+		if len(data) != 1 {
+			t.Fatalf("bad: %v", data)
+		}
 
-	data := inm.Data()
-	if len(data) != 1 {
-		t.Fatalf("bad: %v", data)
-	}
-
-	expected := MetricsSummary{
-		Timestamp:       data[0].Interval.Round(time.Second).UTC().String(),
-		PrecisionGauges: make([]PrecisionGaugeValue, 0),
-		Gauges: []GaugeValue{
-			{
-				Name:          "foo.bar",
-				Hash:          "foo.bar",
-				Value:         float32(42),
-				DisplayLabels: map[string]string{},
-			},
-			{
-				Name:          "foo.bar",
-				Hash:          "foo.bar;a=b",
-				Value:         float32(23),
-				DisplayLabels: map[string]string{"a": "b"},
-			},
-		},
-		Points: []PointValue{
-			{
-				Name:   "foo.bar",
-				Points: []float32{42},
-			},
-		},
-		Counters: []SampledValue{
-			{
-				Name: "foo.bar",
-				Hash: "foo.bar",
-				AggregateSample: &AggregateSample{
-					Count: 2,
-					Min:   20,
-					Max:   22,
-					Sum:   42,
-					SumSq: 884,
-					Rate:  2100,
+		expected := MetricsSummary{
+			Timestamp:       data[0].Interval.Round(time.Second).UTC().String(),
+			PrecisionGauges: make([]PrecisionGaugeValue, 0),
+			Gauges: []GaugeValue{
+				{
+					Name:          "foo.bar",
+					Hash:          "foo.bar",
+					Value:         float32(42),
+					DisplayLabels: map[string]string{},
 				},
-				Mean:          21,
-				Stddev:        1.4142135623730951,
-				DisplayLabels: make(map[string]string),
-			},
-			{
-				Name: "foo.bar",
-				Hash: "foo.bar;a=b",
-				AggregateSample: &AggregateSample{
-					Count: 2,
-					Min:   20,
-					Max:   40,
-					Sum:   60,
-					SumSq: 2000,
-					Rate:  3000,
+				{
+					Name:          "foo.bar",
+					Hash:          "foo.bar;a=b",
+					Value:         float32(23),
+					DisplayLabels: map[string]string{"a": "b"},
 				},
-				Mean:          30,
-				Stddev:        14.142135623730951,
-				DisplayLabels: map[string]string{"a": "b"},
 			},
-		},
-		Samples: []SampledValue{
-			{
-				Name: "foo.bar",
-				Hash: "foo.bar",
-				AggregateSample: &AggregateSample{
-					Count: 2,
-					Min:   20,
-					Max:   24,
-					Sum:   44,
-					SumSq: 976,
-					Rate:  2200,
+			Points: []PointValue{
+				{
+					Name:   "foo.bar",
+					Points: []float32{42},
 				},
-				Mean:          22,
-				Stddev:        2.8284271247461903,
-				DisplayLabels: make(map[string]string),
 			},
-			{
-				Name: "foo.bar",
-				Hash: "foo.bar;a=b",
-				AggregateSample: &AggregateSample{
-					Count: 2,
-					Min:   23,
-					Max:   33,
-					Sum:   56,
-					SumSq: 1618,
-					Rate:  2800,
+			Counters: []SampledValue{
+				{
+					Name: "foo.bar",
+					Hash: "foo.bar",
+					AggregateSample: &AggregateSample{
+						Count: 2,
+						Min:   20,
+						Max:   22,
+						Sum:   42,
+						SumSq: 884,
+						Rate:  2100,
+					},
+					Mean:          21,
+					Stddev:        1.4142135623730951,
+					DisplayLabels: make(map[string]string),
 				},
-				Mean:          28,
-				Stddev:        7.0710678118654755,
-				DisplayLabels: map[string]string{"a": "b"},
+				{
+					Name: "foo.bar",
+					Hash: "foo.bar;a=b",
+					AggregateSample: &AggregateSample{
+						Count: 2,
+						Min:   20,
+						Max:   40,
+						Sum:   60,
+						SumSq: 2000,
+						Rate:  3000,
+					},
+					Mean:          30,
+					Stddev:        14.142135623730951,
+					DisplayLabels: map[string]string{"a": "b"},
+				},
 			},
-		},
-	}
+			Samples: []SampledValue{
+				{
+					Name: "foo.bar",
+					Hash: "foo.bar",
+					AggregateSample: &AggregateSample{
+						Count: 2,
+						Min:   20,
+						Max:   24,
+						Sum:   44,
+						SumSq: 976,
+						Rate:  2200,
+					},
+					Mean:          22,
+					Stddev:        2.8284271247461903,
+					DisplayLabels: make(map[string]string),
+				},
+				{
+					Name: "foo.bar",
+					Hash: "foo.bar;a=b",
+					AggregateSample: &AggregateSample{
+						Count: 2,
+						Min:   23,
+						Max:   33,
+						Sum:   56,
+						SumSq: 1618,
+						Rate:  2800,
+					},
+					Mean:          28,
+					Stddev:        7.0710678118654755,
+					DisplayLabels: map[string]string{"a": "b"},
+				},
+			},
+		}
 
-	raw, err := inm.DisplayMetrics(nil, nil)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	result := raw.(MetricsSummary)
+		raw, err := inm.DisplayMetrics(nil, nil)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		result := raw.(MetricsSummary)
 
-	// Ignore the LastUpdated field, we don't export that anyway
-	for i, got := range result.Counters {
-		expected.Counters[i].LastUpdated = got.LastUpdated
-	}
-	for i, got := range result.Samples {
-		expected.Samples[i].LastUpdated = got.LastUpdated
-	}
+		// Ignore the LastUpdated field, we don't export that anyway
+		for i, got := range result.Counters {
+			expected.Counters[i].LastUpdated = got.LastUpdated
+		}
+		for i, got := range result.Samples {
+			expected.Samples[i].LastUpdated = got.LastUpdated
+		}
 
-	if !reflect.DeepEqual(result, expected) {
-		t.Fatalf("")
-	}
+		if !reflect.DeepEqual(result, expected) {
+			t.Fatalf("")
+		}
+	})
 }
 
 func TestDisplayMetrics_RaceSetGauge(t *testing.T) {
